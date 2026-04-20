@@ -63,19 +63,16 @@ export default function RegisterPage() {
       }
 
       // Créer le profil si l'utilisateur est confirmé immédiatement
-      if (authData.user && !authData.user.email_confirmed_at) {
-        setDone(true)
-        toast.success('Vérifiez votre email pour confirmer votre compte')
-      } else if (authData.user) {
-        await supabase.from('profiles').upsert({
-          id:         authData.user.id,
-          first_name: data.first_name,
-          last_name:  data.last_name,
-          email:      data.email,
-        })
+      // Le trigger Supabase crée le profil automatiquement via raw_user_meta_data
+      if (authData.session) {
+        // Confirmation email désactivée → connexion directe
         toast.success('Compte créé avec succès !')
         router.push('/dashboard')
         router.refresh()
+      } else {
+        // Confirmation email requise
+        setDone(true)
+        toast.success('Vérifiez votre email pour confirmer votre compte')
       }
     } finally {
       setLoading(false)
