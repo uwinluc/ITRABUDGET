@@ -6,10 +6,9 @@ import {
   LayoutDashboard, Building2, Users, FileText, ArrowRightLeft,
   PlayCircle, Repeat, BarChart3, FileSearch, Settings,
   TrendingUp, ChevronLeft, ChevronRight, LogOut, Vote, Truck,
-  UserCircle, GitBranch, Bell
+  GitBranch, Bell
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Button } from '@/components/ui/button'
 import { useState } from 'react'
 import type { UserRole } from '@/types/database'
 
@@ -40,6 +39,27 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/audit',         label: 'Audit',          icon: FileSearch, roles: ['admin','dg_holding','dga_holding','consolidation_officer','audit_director'], section: 'Groupe' },
 ]
 
+const ROLE_LABELS: Record<UserRole, string> = {
+  admin:                 'Administrateur',
+  dg_holding:            'DG Holding',
+  dga_holding:           'DGA Holding',
+  consolidation_officer: 'Consolidation',
+  legal_officer:         'Juriste',
+  audit_director:        'Audit',
+  dg_subsidiary:         'DG Filiale',
+  dga_subsidiary:        'DGA Filiale',
+  director:              'Directeur',
+  service_chief:         'Chef de Service',
+  copil_president:       'Président COPIL',
+  copil_member:          'Membre COPIL',
+}
+
+const ROLE_PRIORITY: UserRole[] = [
+  'admin', 'dg_holding', 'dga_holding', 'consolidation_officer',
+  'audit_director', 'legal_officer', 'dg_subsidiary', 'dga_subsidiary',
+  'director', 'service_chief', 'copil_president', 'copil_member',
+]
+
 interface SidebarProps {
   userRoles?: UserRole[]
   profile?: { first_name: string; last_name: string; avatar_url?: string | null }
@@ -60,6 +80,9 @@ export function Sidebar({ userRoles = [], profile, onLogout }: SidebarProps) {
   const initials = profile
     ? `${profile.first_name[0]}${profile.last_name[0]}`.toUpperCase()
     : 'U'
+
+  const primaryRole = ROLE_PRIORITY.find(r => userRoles.includes(r))
+  const roleLabel = primaryRole ? ROLE_LABELS[primaryRole] : 'Utilisateur'
 
   return (
     <aside className={cn(
@@ -185,7 +208,7 @@ export function Sidebar({ userRoles = [], profile, onLogout }: SidebarProps) {
               <p className="text-sm font-semibold text-sidebar-foreground truncate leading-none">
                 {profile ? `${profile.first_name} ${profile.last_name}` : 'Utilisateur'}
               </p>
-              <p className="text-[11px] text-sidebar-foreground/40 mt-0.5">Administrateur</p>
+              <p className="text-[11px] text-sidebar-foreground/40 mt-0.5">{roleLabel}</p>
             </Link>
             <button
               onClick={onLogout}
