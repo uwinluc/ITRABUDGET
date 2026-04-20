@@ -29,7 +29,7 @@ export default function LoginPage() {
   const [step, setStep] = useState<'login' | '2fa'>('login')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [pendingUserId, setPendingUserId] = useState<string | null>(null)
+  const [, setPendingUserId] = useState<string | null>(null)
 
   const loginForm = useForm<LoginForm>({ resolver: zodResolver(loginSchema) })
   const twoFaForm = useForm<TwoFaForm>({ resolver: zodResolver(twoFaSchema) })
@@ -158,8 +158,11 @@ export default function LoginPage() {
                     Se connecter
                   </Button>
                 </form>
-                <p className="mt-4 text-center text-xs text-slate-500">
-                  Pas de compte ? Contactez votre administrateur
+                <p className="mt-4 text-center text-sm text-slate-400">
+                  Pas de compte ?{' '}
+                  <a href="/register" className="text-blue-400 hover:text-blue-300 font-medium">
+                    S&apos;inscrire
+                  </a>
                 </p>
               </CardContent>
             </>
