@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { BarChart3, CheckCircle2, Clock, FileDown, Lock, Plus, TrendingUp, XCircle } from 'lucide-react'
+import { BarChart3, CheckCircle2, FileDown, Lock, Loader2, Plus, TrendingUp, XCircle } from 'lucide-react'
+import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -11,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { cn, formatDate } from '@/lib/utils'
-import type { Consolidation, FiscalYear, IntercompanyTransaction, Organization } from '@/types/database'
+import type { Consolidation, IntercompanyTransaction } from '@/types/database'
 
 interface ConsolidationWithProfile extends Consolidation {
   prepared_by_profile?: { first_name: string; last_name: string } | null
@@ -35,12 +36,6 @@ interface Props {
   }>
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  consolidation_officer: 'Officier de consolidation',
-  dg_holding: 'DG Holding',
-  dga_holding: 'DGA Holding',
-  admin: 'Administrateur',
-}
 
 function formatUSD(amount: number | null): string {
   if (amount == null) return '—'
@@ -50,9 +45,7 @@ function formatUSD(amount: number | null): string {
 export function ConsolidationClient({
   consolidations,
   fiscalYears,
-  organizations,
   intercoTransactions,
-  currentUserId,
   currentUserRoles,
   budgetSummary,
 }: Props) {
@@ -62,6 +55,7 @@ export function ConsolidationClient({
   const [newFY, setNewFY] = useState('')
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
+  const [finalizeLoading, setFinalizeLoading] = useState<string | null>(null)
 
   const canCreate = currentUserRoles.some(r => ['admin', 'consolidation_officer', 'dg_holding', 'dga_holding'].includes(r))
 
@@ -85,15 +79,57 @@ export function ConsolidationClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fiscal_year_id: newFY, notes }),
       })
-      if (res.ok) {
-        setShowNewDialog(false)
-        setNewFY('')
-        setNotes('')
-        router.refresh()
-      }
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { toast.error(data.error ?? 'Erreur lors de la création'); return }
+      toast.success('Consolidation créée')
+      setShowNewDialog(false)
+      setNewFY('')
+      setNotes('')
+      router.refresh()
+    } catch {
+      toast.error('Erreur réseau')
     } finally {
       setLoading(false)
     }
+  }
+
+  async function handleFinalize(id: string) {
+    setFinalizeLoading(id)
+    try {
+      const res = await fetch('/api/consolidation', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: 'final' }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { toast.error(data.error ?? 'Erreur lors de la finalisation'); return }
+      toast.success('Consolidation finalisée')
+      router.refresh()
+    } catch {
+      toast.error('Erreur réseau')
+    } finally {
+      setFinalizeLoading(null)
+    }
+  }
+
+  function handleExport(c: ConsolidationWithProfile) {
+    const rows = [
+      ['Exercice', c.fiscal_year?.name ?? c.fiscal_year_id],
+      ['Statut', c.status],
+      ['Budget total (USD)', c.total_budget_usd ?? 0],
+      ['Consommé (USD)', c.total_consumed_usd ?? 0],
+      ['Interco éliminé (USD)', c.interco_eliminated ?? 0],
+      ['Préparé par', c.prepared_by_profile ? `${c.prepared_by_profile.first_name} ${c.prepared_by_profile.last_name}` : '—'],
+      ['Notes', c.notes ?? ''],
+    ]
+    const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `consolidation-${c.fiscal_year?.code ?? 'export'}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   return (
@@ -233,13 +269,22 @@ export function ConsolidationClient({
                     {c.notes && <p className="text-xs italic text-muted-foreground">{c.notes}</p>}
                   </div>
                   <div className="flex gap-2 shrink-0">
-                    <Button variant="outline" size="sm" className="gap-1">
+                    <Button variant="outline" size="sm" className="gap-1" onClick={() => handleExport(c)}>
                       <FileDown className="h-3.5 w-3.5" />
                       Export
                     </Button>
                     {c.status === 'draft' && canCreate && (
-                      <Button size="sm" variant="default" className="gap-1">
-                        <Lock className="h-3.5 w-3.5" />
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="gap-1"
+                        disabled={finalizeLoading === c.id}
+                        onClick={() => handleFinalize(c.id)}
+                      >
+                        {finalizeLoading === c.id
+                          ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          : <Lock className="h-3.5 w-3.5" />
+                        }
                         Finaliser
                       </Button>
                     )}

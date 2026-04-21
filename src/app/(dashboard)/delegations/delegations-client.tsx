@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Users, CalendarDays, CheckCircle2, XCircle, AlertCircle } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -64,7 +64,6 @@ export function DelegationsClient({
   organizations,
   currentUserId,
   currentUserRoles,
-  currentUserOrgIds,
 }: Props) {
   const router = useRouter()
   const [tab, setTab] = useState<'all' | 'given' | 'received'>('all')
@@ -123,8 +122,18 @@ export function DelegationsClient({
   }
 
   async function revokeDelegate(id: string) {
-    await fetch(`/api/delegations/${id}`, { method: 'DELETE' })
-    router.refresh()
+    try {
+      const res = await fetch(`/api/delegations/${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error ?? 'Erreur lors de la révocation')
+        return
+      }
+      toast.success('Délégation révoquée')
+      router.refresh()
+    } catch {
+      toast.error('Erreur réseau — réessayez')
+    }
   }
 
   return (

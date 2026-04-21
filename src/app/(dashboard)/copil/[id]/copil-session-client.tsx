@@ -7,7 +7,7 @@ import {
   CheckCheck, Crown
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
@@ -27,13 +27,12 @@ interface Props {
   organization: Record<string, unknown> | null
   profiles: Array<{ id: string; first_name: string; last_name: string }>
   currentUserId: string
-  currentUserRoles: string[]
   currentMember: { id: string; role: string } | null
 }
 
 export function CopilSessionClient({
   session, members, votes, budget, organization, profiles,
-  currentUserId, currentUserRoles, currentMember
+  currentUserId, currentMember
 }: Props) {
   const router = useRouter()
   const [voteDialog, setVoteDialog] = useState<VoteDecision | null>(null)
@@ -54,12 +53,6 @@ export function CopilSessionClient({
   const hasVoted = myVote !== null && myVote !== undefined
 
   const getProfile = (userId: string) => profiles.find(p => p.id === userId)
-  const getMemberName = (memberId: string) => {
-    const member = members.find(m => m.id === memberId)
-    if (!member) return 'Inconnu'
-    const profile = getProfile(member.user_id)
-    return profile ? `${profile.first_name} ${profile.last_name}` : 'Profil inconnu'
-  }
 
   const voteCount = {
     approve: votes.filter(v => v.decision === 'approve').length,
@@ -313,9 +306,14 @@ export function CopilSessionClient({
               <div className="space-y-2 pt-2">
                 <Separator />
                 <p className="text-xs text-muted-foreground text-center">En tant que Président COPIL :</p>
+                {!isUnanimousApprove && !isUnanimousReject && (
+                  <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-700 text-center">
+                    ⚠ Vote non unanime — l&apos;approbation n&apos;est pas possible
+                  </div>
+                )}
                 <Button
                   className="w-full bg-green-600 hover:bg-green-700"
-                  disabled={closeLoading}
+                  disabled={closeLoading || !isUnanimousApprove}
                   onClick={() => handleCloseSession('approve')}
                 >
                   {closeLoading && <Loader2 className="h-4 w-4 animate-spin" />}

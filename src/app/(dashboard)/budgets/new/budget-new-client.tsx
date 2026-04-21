@@ -10,8 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
@@ -51,7 +50,10 @@ const lineSchema = z.object({
   justification_why: z.string().min(10, 'Minimum 10 caractères'),
   justification_consequence: z.string().min(10, 'Minimum 10 caractères'),
   is_recurring: z.boolean().default(false),
-})
+}).refine(d => {
+  if (d.period_start && d.period_end) return d.period_start <= d.period_end
+  return true
+}, { message: 'La date de fin doit être après la date de début', path: ['period_end'] })
 
 const budgetSchema = z.object({
   title: z.string().min(3, 'Minimum 3 caractères'),

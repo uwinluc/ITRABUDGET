@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { ArrowRightLeft, Search, Filter, ChevronDown, ChevronRight, FileText } from 'lucide-react'
+import { useState, useMemo, useEffect } from 'react'
+import { ArrowRightLeft, Search, ChevronDown, ChevronRight } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { cn, formatDate } from '@/lib/utils'
@@ -46,16 +46,21 @@ function formatAmount(amount: number | null, currency: string | null): string {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: currency ?? 'USD', maximumFractionDigits: 0 }).format(amount)
 }
 
-export function TransactionsClient({ transactions, organizations, currentUserRoles }: Props) {
+const PAGE_SIZE = 50
+
+export function TransactionsClient({ transactions, organizations }: Props) {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
   const [orgFilter, setOrgFilter] = useState('all')
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
 
   const typeOptions = useMemo(() => {
     const types = new Set(transactions.map(t => t.type))
     return Array.from(types)
   }, [transactions])
+
+  useEffect(() => { setPage(1) }, [search, typeFilter, orgFilter])
 
   const filtered = useMemo(() => {
     return transactions.filter(t => {
@@ -139,7 +144,7 @@ export function TransactionsClient({ transactions, organizations, currentUserRol
           </SelectContent>
         </Select>
         {(search || typeFilter !== 'all' || orgFilter !== 'all') && (
-          <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setTypeFilter('all'); setOrgFilter('all') }}>
+          <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setTypeFilter('all'); setOrgFilter('all'); setPage(1) }}>
             Réinitialiser
           </Button>
         )}
@@ -162,7 +167,7 @@ export function TransactionsClient({ transactions, organizations, currentUserRol
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y">
-              {filtered.map(tx => {
+              {filtered.slice(0, page * PAGE_SIZE).map(tx => {
                 const cfg = TYPE_CONFIG[tx.type as TransactionType] ?? { label: tx.type, color: 'bg-muted text-muted-foreground' }
                 const isExpanded = expandedId === tx.id
                 const hasComment = !!tx.comment
@@ -225,6 +230,13 @@ export function TransactionsClient({ transactions, organizations, currentUserRol
                 )
               })}
             </div>
+            {filtered.length > page * PAGE_SIZE && (
+              <div className="p-4 text-center border-t">
+                <Button variant="outline" size="sm" onClick={() => setPage(p => p + 1)}>
+                  Voir plus ({filtered.length - page * PAGE_SIZE} restantes)
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

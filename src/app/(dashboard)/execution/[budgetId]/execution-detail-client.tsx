@@ -4,11 +4,10 @@ import { useRouter } from 'next/navigation'
 import {
   ArrowLeft, Plus, ChevronDown, ChevronUp, Building2, Calendar,
   Loader2, AlertCircle, CheckCircle2, DollarSign, FileText, Truck,
-  ClipboardList, CreditCard, TrendingUp
+  ClipboardList, CreditCard
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -113,6 +112,14 @@ export function ExecutionDetailClient({
   const handleCredit = async () => {
     if (!dialog || dialog.type !== 'credit') return
     if (!form.amount || !form.currency_code) { toast.error('Montant et devise requis'); return }
+
+    const creditLine = lines.find(l => l.id === dialog.lineId)
+    const lineBudget = (creditLine?.amount_htva as number) ?? 0
+    const existingCredits = creditsFor(dialog.lineId).reduce((s, c) => s + ((c.amount as number) ?? 0), 0)
+    if (lineBudget > 0 && parseFloat(form.amount) + existingCredits > lineBudget) {
+      toast.error(`Le crédit dépasse le budget de la ligne (${lineBudget.toLocaleString('fr-FR')} disponible)`)
+      return
+    }
 
     setLoading(true)
     const supabase = createClient()
