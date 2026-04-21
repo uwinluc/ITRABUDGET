@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import Link from 'next/link'
 
@@ -38,28 +39,35 @@ export default function RegisterPage() {
 
   const onSubmit = async (data: Form) => {
     setLoading(true)
+    const supabase = createClient()
     try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email:      data.email,
-          password:   data.password,
-          first_name: data.first_name,
-          last_name:  data.last_name,
-        }),
+      const { data: authData, error } = await supabase.auth.signUp({
+        email:    data.email,
+        password: data.password,
+        options: {
+          data: {
+            first_name: data.first_name,
+            last_name:  data.last_name,
+          },
+        },
       })
 
-      const json = await res.json()
-
-      if (!res.ok) {
-        toast.error(json.error ?? 'Erreur lors de la création du compte')
+      if (error) {
+        toast.error(error.message.includes('already registered')
+          ? 'Cet email est déjà utilisé'
+          : error.message
+        )
         return
       }
 
-      toast.success('Compte créé avec succès !')
-      router.push('/dashboard')
-      router.refresh()
+      if (authData.session) {
+        toast.success('Compte créé avec succès !')
+        router.push('/dashboard')
+        router.refresh()
+      } else {
+        toast.info('Vérifiez votre email pour confirmer votre compte')
+        router.push('/login')
+      }
     } finally {
       setLoading(false)
     }
@@ -68,7 +76,6 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
       <div className="w-full max-w-md space-y-6">
-        {/* Logo */}
         <div className="text-center space-y-2">
           <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-500 shadow-xl">
             <span className="text-2xl font-bold text-white">IB</span>
@@ -84,78 +91,49 @@ export default function RegisterPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              {/* Prénom + Nom */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label className="text-slate-300">Prénom</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <Input
-                      placeholder="Jean"
-                      className="pl-10 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
-                      {...register('first_name')}
-                    />
+                    <Input placeholder="Jean" className="pl-10 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500" {...register('first_name')} />
                   </div>
                   {errors.first_name && <p className="text-xs text-destructive">{errors.first_name.message}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label className="text-slate-300">Nom</Label>
-                  <Input
-                    placeholder="Dupont"
-                    className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
-                    {...register('last_name')}
-                  />
+                  <Input placeholder="Dupont" className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500" {...register('last_name')} />
                   {errors.last_name && <p className="text-xs text-destructive">{errors.last_name.message}</p>}
                 </div>
               </div>
 
-              {/* Email */}
               <div className="space-y-2">
                 <Label className="text-slate-300">Email</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input
-                    type="email"
-                    placeholder="votre@email.com"
-                    className="pl-10 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
-                    {...register('email')}
-                  />
+                  <Input type="email" placeholder="votre@email.com" className="pl-10 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500" {...register('email')} />
                 </div>
                 {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
               </div>
 
-              {/* Mot de passe */}
               <div className="space-y-2">
                 <Label className="text-slate-300">Mot de passe</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    className="pl-10 pr-10 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
-                    {...register('password')}
-                  />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-300">
+                  <Input type={showPassword ? 'text' : 'password'} placeholder="••••••••" className="pl-10 pr-10 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500" {...register('password')} />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-300">
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
                 {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
               </div>
 
-              {/* Confirmation */}
               <div className="space-y-2">
                 <Label className="text-slate-300">Confirmer le mot de passe</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input
-                    type={showConfirm ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    className="pl-10 pr-10 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
-                    {...register('confirm')}
-                  />
-                  <button type="button" onClick={() => setShowConfirm(!showConfirm)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-300">
+                  <Input type={showConfirm ? 'text' : 'password'} placeholder="••••••••" className="pl-10 pr-10 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500" {...register('confirm')} />
+                  <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-300">
                     {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
@@ -169,9 +147,7 @@ export default function RegisterPage() {
 
               <p className="text-center text-sm text-slate-400">
                 Déjà un compte ?{' '}
-                <Link href="/login" className="text-blue-400 hover:text-blue-300 font-medium">
-                  Se connecter
-                </Link>
+                <Link href="/login" className="text-blue-400 hover:text-blue-300 font-medium">Se connecter</Link>
               </p>
             </form>
           </CardContent>
